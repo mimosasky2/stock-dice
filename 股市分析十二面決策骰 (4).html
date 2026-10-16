@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>股市分析十二面決策骰｜真正 D12</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 12%,#fff8e9,#ead4ae 48%,#c29b61);font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif;color:#3c2918;display:flex;justify-content:center;align-items:center}
+.app{width:min(1000px,95vw);margin:24px auto;padding:24px;background:rgba(255,252,244,.96);border:1px solid #caa56d;border-radius:28px;box-shadow:0 20px 55px rgba(68,43,17,.25);text-align:center}
+h1{margin:0 0 4px;font-size:clamp(28px,4vw,44px);letter-spacing:2px}
+.sub{margin:0 0 6px;color:#80623d}
+#status{font-weight:700;color:#a14e18;height:28px}
+canvas{width:min(820px,92vw);height:auto;display:block;margin:0 auto;cursor:pointer;touch-action:manipulation}
+.hint{margin:0 0 12px;color:#80623d}
+button{border:0;border-radius:999px;background:#b85d18;color:#fff;padding:13px 36px;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 6px 0 #87410f,0 10px 18px #8c5a2633}
+button:active{transform:translateY(5px);box-shadow:0 1px 0 #87410f}
+.result{max-width:850px;margin:22px auto 0;padding:19px 22px;background:#fffdf8;border:1px solid #dfc89e;border-radius:20px;text-align:left}
+.tag{display:inline-block;background:#f2dfbf;color:#765026;border-radius:999px;padding:4px 11px;font-size:13px}
+h2{margin:8px 0 8px;color:#994713;font-size:28px}
+.result p{margin:0;font-size:18px;line-height:1.85}
+.notice{margin-top:14px;color:#8a755c;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>股市分析十二面決策骰</h1>
+<p class="sub">真正 12 面 D12 多面骰｜點擊骰子即可開始／停止</p>
+<div id="status">骰子準備中…</div>
+<canvas id="dice" width="1000" height="700"></canvas>
+<p class="hint">骰子會像真正的多面骰一樣翻滾；想停止時直接點骰子。</p>
+<button id="toggle">開始轉動</button>
+<div class="result">
+<span class="tag">擲出結果</span>
+<h2 id="title">尚未擲出</h2>
+<p id="desc">按「開始轉動」，讓 12 面骰開始滾動；再次點擊即可隨機停止並顯示解說。</p>
+</div>
+<div class="notice">娛樂／學習用途，不構成投資建議</div>
+</div>
+
+<script>
+const V=[[-1,-1,-1],[-1,-1,1],[-1,1,-1],[-1,1,1],[1,-1,-1],[1,-1,1],[1,1,-1],[1,1,1],[0,-0.6180339887498948,-1.618033988749895],[0,-0.6180339887498948,1.618033988749895],[0,0.6180339887498948,-1.618033988749895],[0,0.6180339887498948,1.618033988749895],[-0.6180339887498948,-1.618033988749895,0],[-0.6180339887498948,1.618033988749895,0],[0.6180339887498948,-1.618033988749895,0],[0.6180339887498948,1.618033988749895,0],[-1.618033988749895,0,-0.6180339887498948],[-1.618033988749895,0,0.6180339887498948],[1.618033988749895,0,-0.6180339887498948],[1.618033988749895,0,0.6180339887498948]];
+const F=[[6,18,4,8,10],[8,10,2,16,0],[1,12,0,16,17],[2,13,3,17,16],[5,14,12,1,9],[14,4,8,0,12],[18,19,5,14,4],[11,9,1,17,3],[5,19,7,11,9],[15,6,10,2,13],[19,18,6,15,7],[7,15,13,3,11]];
+const DATA=[["多頭回檔","多頭趨勢中價格拉回。重點觀察回檔是否守住原有支撐與趨勢結構；若支撐失守，需重新評估多頭結構。"],["回後買上漲","股價上漲後出現回檔，若回檔結束並重新轉強，可觀察是否出現符合自己交易系統的進場條件。"],["盤整突破","價格在區間內整理後向上突破。重點確認突破是否有效，避免只因盤中短暫觸及壓力就判定突破。"],["多頭確認","價格與趨勢結構持續偏多，可觀察高點、低點與均線方向是否同步支持多頭判斷。"],["空頭確認","價格與趨勢結構持續偏空，可觀察高點、低點與均線方向是否同步支持空頭判斷。"],["空頭反彈","空頭趨勢中的反彈。重點觀察反彈是否遇壓，以及原本的空頭結構是否仍然維持。"],["趨勢轉弱","原本的上漲趨勢出現轉弱訊號，例如高低點結構改變或重要支撐失守；應重新檢查整體趨勢。"],["趨勢轉強","原本偏弱的走勢出現轉強訊號，例如突破重要壓力或高低點結構改善；仍需搭配完整條件確認。"],["遇支撐有支撐","價格回到重要支撐附近後出現止穩反應。重點不是碰到支撐就直接判定有效，而是觀察實際價格反應。"],["遇壓有壓","價格接近重要壓力後出現受阻。重點觀察壓力是否真的造成價格轉弱，而不是單純觸碰壓力。"],["長黑吞噬","出現具有明顯轉弱意義的長黑K，且吞噬前一根K線。可視為風險提醒，但仍需放回整體趨勢與位置判斷。"],["退出股市","今天先不交易。當盤勢看不懂、條件不完整或風險報酬不符合自己的系統時，保留現金也是一種選擇。"]];
+
+const c=document.getElementById('dice'),ctx=c.getContext('2d');
+const W=c.width,H=c.height;
+let q=[1,0,0,0], running=false, stopping=false, targetQ=null, chosen=0, last=performance.now();
+
+function qMul(a,b){
+  return [a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],
+          a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],
+          a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],
+          a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]];
+}
+function qNorm(a){let n=Math.hypot(...a);return a.map(x=>x/n)}
+function qConj(a){return [a[0],-a[1],-a[2],-a[3]]}
+function qRot(q,v){let r=qMul(qMul(q,[0,...v]),qConj(q));return r.slice(1)}
+function axisAngle(axis,ang){
+  let s=Math.sin(ang/2),n=Math.hypot(...axis)||1;
+  return qNorm([Math.cos(ang/2),axis[0]/n*s,axis[1]/n*s,axis[2]/n*s]);
+}
+function fromTo(a,b){
+  let ax=[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  let d=a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  if(d>0.999999)return [1,0,0,0];
+  if(d<-0.999999){
+    let u=Math.abs(a[0])<.9?[1,0,0]:[0,1,0];
+    return axisAngle([a[1]*u[2]-a[2]*u[1],a[2]*u[0]-a[0]*u[2],a[0]*u[1]-a[1]*u[0]],Math.PI);
+  }
+  return qNorm([1+d,ax[0],ax[1],ax[2]]);
+}
+function slerp(a,b,t){
+  let dot=a[0]*b[0]+a[1]*b[1]+a[2]*b[2]+a[3]*b[3];
+  if(dot<0){b=b.map(x=>-x);dot=-dot}
+  if(dot>.9995)return qNorm(a.map((x,i)=>x+(b[i]-x)*t));
+  let th=Math.acos(dot),s=Math.sin(th);
+  return a.map((x,i)=>(Math.sin((1-t)*th)/s)*x+(Math.sin(t*th)/s)*b[i]);
+}
+function normalForFace(i){
+  let p=V[F[i][0]], a=V[F[i][1]], b=V[F[i][2]];
+  let u=a.map((x,j)=>x-p[j]),v=b.map((x,j)=>x-p[j]);
+  let n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+  let len=Math.hypot(...n); return n.map(x=>x/len);
+}
+function project(v){
+  const scale=150, z=v[2], depth=1+z*.035;
+  return [W/2+v[0]*scale*depth,H/2-v[1]*scale*depth,z];
+}
+function faceCenter(ids){
+  let p=[0,0,0];ids.forEach(i=>p=p.map((x,j)=>x+V[i][j]));return p.map(x=>x/ids.length);
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  // ground shadow, like a physical die
+  ctx.save();ctx.translate(W/2,H*.79);ctx.scale(1,.22);
+  ctx.fillStyle='rgba(54,31,10,.25)';ctx.beginPath();ctx.ellipse(0,0,240,90,0,0,Math.PI*2);ctx.fill();ctx.restore();
+
+  const pts=V.map(v=>project(qRot(q,v)));
+  const order=F.map((ids,i)=>({i,depth:ids.reduce((s,k)=>s+pts[k][2],0)/5})).sort((a,b)=>a.depth-b.depth);
+
+  for(const o of order){
+    const ids=F[o.i], p0=V[ids[0]], p1=V[ids[1]], p2=V[ids[2]];
+    const u=p1.map((x,j)=>x-p0[j]),v=p2.map((x,j)=>x-p0[j]);
+    const n0=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+    const nn=qRot(q,n0); const len=Math.hypot(...nn); const nz=nn[2]/len;
+    if(nz<-.02)continue;
+
+    const poly=ids.map(k=>pts[k]);
+    const center=poly.reduce((a,p)=>[a[0]+p[0],a[1]+p[1]],[0,0]).map(x=>x/5);
+    const light=.5+.5*Math.max(0,nz);
+    const isChosen=!running&&!stopping&&o.i===chosen;
+    ctx.beginPath();poly.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();
+    const g=ctx.createLinearGradient(center[0]-80,center[1]-80,center[0]+90,center[1]+90);
+    g.addColorStop(0,`rgb(${255-Math.round((1-light)*30)},${246-Math.round((1-light)*65)},${220-Math.round((1-light)*90)})`);
+    g.addColorStop(1,`rgb(${190+Math.round(light*35)},${116+Math.round(light*55)},${38+Math.round(light*45)})`);
+    ctx.fillStyle=g;ctx.fill();
+    ctx.lineWidth=isChosen?8:4;ctx.strokeStyle=isChosen?'#fff2a6':'#6e421f';ctx.stroke();
+
+    // bevel line
+    ctx.save();ctx.globalAlpha=.38;ctx.strokeStyle='#fff';ctx.lineWidth=2;
+    ctx.beginPath();poly.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0]+2,p[1]+2));ctx.closePath();ctx.stroke();ctx.restore();
+
+    const txt=DATA[o.i][0];
+    let fs=txt.length>=8?17:txt.length>=6?20:23;
+    if(isChosen)fs+=2;
+    ctx.fillStyle='#402613';ctx.font=`700 ${fs}px "Microsoft JhengHei","Noto Sans TC",sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    const lines=txt.length>5?[txt.slice(0,5),txt.slice(5)]:[txt];
+    if(lines.length===1)ctx.fillText(lines[0],center[0],center[1]);
+    else{ctx.fillText(lines[0],center[0],center[1]-10);ctx.fillText(lines[1],center[0],center[1]+12);}
+  }
+}
+
+function animate(t){
+  if(running){
+    const dt=Math.min(32,t-last);last=t;
+    q=qMul(axisAngle([0.71,0.43,0.57],dt*.006),q);
+    q=qNorm(q);draw();requestAnimationFrame(animate);
+  }else if(stopping){
+    q=slerp(q,targetQ,.12);
+    draw();
+    let dot=Math.abs(q[0]*targetQ[0]+q[1]*targetQ[1]+q[2]*targetQ[2]+q[3]*targetQ[3]);
+    if(dot>.99992){
+      q=targetQ;stopping=false;
+      document.getElementById('status').textContent='已停止｜隨機擲出結果';
+      document.getElementById('title').textContent=DATA[chosen][0];
+      document.getElementById('desc').textContent=DATA[chosen][1];
+      draw();
+    }else requestAnimationFrame(animate);
+  }
+}
+
+function start(){
+  if(running||stopping)return;
+  running=true;last=performance.now();
+  document.getElementById('status').textContent='12 面骰滾動中…';
+  document.getElementById('toggle').textContent='停止骰子';
+  requestAnimationFrame(animate);
+}
+function stop(){
+  if(!running)return;
+  running=false;
+  chosen=Math.floor(Math.random()*12);
+  const n=normalForFace(chosen);
+  let base=fromTo(n,[0,0,1]);
+  const roll=axisAngle([0,0,1],Math.random()*Math.PI*2);
+  targetQ=qNorm(qMul(roll,base));
+  stopping=true;
+  document.getElementById('toggle').textContent='開始轉動';
+  document.getElementById('status').textContent='骰子停止中…';
+  requestAnimationFrame(animate);
+}
+function toggle(){ if(running)stop(); else start(); }
+c.addEventListener('click',toggle);
+document.getElementById('toggle').addEventListener('click',toggle);
+draw();
+</script>
+</body>
+</html>
